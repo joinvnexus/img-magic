@@ -61,8 +61,8 @@ export function CanvasEditor({ previewUrl, canvasWidth, canvasHeight }: CanvasEd
           fabric.Image.fromURL(bg.assetUrl, (img) => {
             img.selectable = false;
             img.evented = false;
-            const scaleX = canvas.width! / img.width!;
-            const scaleY = canvas.height! / img.height!;
+            const scaleX = canvas.width! / (img.width ?? canvas.width!);
+            const scaleY = canvas.height! / (img.height ?? canvas.height!);
             const scale = Math.min(scaleX, scaleY);
             img.scale(scale);
             canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
@@ -73,18 +73,19 @@ export function CanvasEditor({ previewUrl, canvasWidth, canvasHeight }: CanvasEd
         }
 
         // Render image layers (non-background)
-        const imageLayers = layers.filter((l: any) => l.type === 'IMAGE' || l.type === 'BACKGROUND');
+        const imageLayers = layers.filter((l: any) => l.type === 'IMAGE');
         for (const l of imageLayers) {
           if (!l.assetUrl) continue;
-          // skip background since already set
-          if (l.type === 'BACKGROUND') continue;
           // add image object
           // eslint-disable-next-line no-await-in-loop
           await new Promise<void>((resolveInner) => {
             fabric.Image.fromURL(l.assetUrl, (img) => {
               img.set({ left: l.x ?? 0, top: l.y ?? 0, angle: l.rotation ?? 0, opacity: l.opacity ?? 1 });
-              img.scaleToWidth(l.width ?? img.width ?? 100);
+              if (l.width) img.scaleToWidth(l.width);
               canvas.add(img);
+              // annotate with source asset id so autosave can preserve it
+              // @ts-ignore
+              img.__sourceAssetId = l.sourceAssetId ?? null;
               resolveInner();
             }, { crossOrigin: 'anonymous' });
           });
@@ -102,6 +103,8 @@ export function CanvasEditor({ previewUrl, canvasWidth, canvasHeight }: CanvasEd
             fontWeight: t.fontWeight ?? 400,
             fill: t.fill ?? '#000',
           });
+          // @ts-ignore
+          text.__layerId = t.id;
           canvas.add(text);
         }
 
@@ -111,6 +114,79 @@ export function CanvasEditor({ previewUrl, canvasWidth, canvasHeight }: CanvasEd
           canvas.add(rect);
           canvas.setActiveObject(rect);
         }
+
+        // Attach change listeners for autosave (debounced)
+        const autosaveDelay = 800;
+        let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+        const serializeAndSave = async () => {
+          if (!projectId) return;
+          const objects = canvas.getObjects();
+          const layersToSave = objects.map((obj: any) => {
+            const base = {
+              type: 'IMAGE' as const,
+              name: obj.name ?? 'Layer',
+              x: obj.left ?? 0,
+              y: obj.top ?? 0,
+              width: obj.width ? (obj.width * (obj.scaleX ?? 1)) : (obj.getScaledWidth ? obj.getScaledWidth() : undefined),
+              height: obj.height ? (obj.height * (obj.scaleY ?? 1)) : (obj.getScaledHeight ? obj.getScaledHeight() : undefined),
+              rotation: obj.angle ?? 0,
+              opacity: obj.opacity ?? 1,
+              visible: obj.visible ?? true,
+              locked: false,
+              metadata: null,
+              sourceAssetId: obj.__sourceAssetId ?? null,
+              text: null,
+            };
+
+            if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
+              return {
+                ...base,
+                type: 'TEXT',
+                text: obj.text ?? '',
+                fontFamily: obj.fontFamily ?? 'Arial',
+                fontSize: obj.fontSize ?? 24,
+                fontWeight: obj.fontWeight ?? 400,
+                fill: obj.fill ?? '#000',
+              };
+            }
+
+            if (obj.type === 'image') {
+              return { ...base, type: 'IMAGE' };
+            }
+
+            // fallback shape
+            return { ...base, type: 'SHAPE' };
+          });
+
+          try {
+            await fetch(`/api/projects/${encodeURIComponent(projectId)}/design/version`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ layers: layersToSave }),
+            });
+          } catch (e) {
+            // ignore save errors for now — show UI later
+            // console.error('Autosave failed', e);
+          }
+        };
+
+        const scheduleSave = () => {
+          if (saveTimer) clearTimeout(saveTimer);
+          saveTimer = setTimeout(serializeAndSave, autosaveDelay);
+        };
+
+        canvas.on('object:modified', scheduleSave);
+        canvas.on('object:added', scheduleSave);
+        canvas.on('object:removed', scheduleSave);
+
+        // cleanup listeners on unmount or reload
+        return () => {
+          canvas.off('object:modified', scheduleSave);
+          canvas.off('object:added', scheduleSave);
+          canvas.off('object:removed', scheduleSave);
+          if (saveTimer) clearTimeout(saveTimer);
+        };
       } catch (err) {
         // fallback: add sample rect
         const rect = new fabric.Rect({ left: 50, top: 50, width: 200, height: 120, fill: 'rgba(255,255,255,0.5)', stroke: '#000', strokeWidth: 1 });
