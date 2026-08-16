@@ -16,10 +16,10 @@ Notes:
 
 ## Phase 0 — Repository audit / housekeeping
 - [x] Inspect repository and confirm Phase 1 baseline (done).
-- [ ] Add a missing `.env.example` documenting required env vars (DATABASE_URL, STORAGE_* vars, REDIS_URL (future), AI_MODE, provider keys).
+- [x] Add a missing `.env.example` documenting required env vars (DATABASE_URL, STORAGE_* vars, REDIS_URL (future), AI_MODE, provider keys). (done)
   - File: add `.env.example` at repo root.
 - [ ] Add CONTRIBUTING.md (optional) with dev workflow (npm install, db:generate, db:push, run dev).
-- [ ] Add CI step templates for typecheck, build, tests (if CI used).
+- [x] Add CI step templates for typecheck, build, tests (if CI used). (done)
 
 Files to update/create:
 - `.env.example` (create)
@@ -31,12 +31,12 @@ Files to update/create:
 Goal: ensure Phase 1 is robust and reproducible on a developer machine, fix small gaps.
 
 Core tasks:
-- [ ] Ensure `prisma generate` instructions are clear; add troubleshooting notes and a lightweight `prisma` bootstrap script if needed.
+- [x] Ensure `prisma generate` instructions are clear; add troubleshooting notes and a lightweight `prisma` bootstrap script if needed. (done)
   - File: README.md / DEVELOPMENT.md
-- [ ] Add `.env.example` (see above).
-- [ ] Typecheck and lint; fix any TypeScript/ESLint issues discovered on local machine.
+- [x] Add `.env.example` (see above). (done)
+- [x] Typecheck and lint; fix any TypeScript/ESLint issues discovered on local machine. (done)
   - Commands: `npm run lint`, `tsc --noEmit` (repo uses TS 5)
-- [ ] Add a small integration test for upload → project creation (mocking storage provider) if test infra exists.
+- [x] Add a small integration test for upload → project creation (mocking storage provider) if test infra exists. (done)
 
 Mapping to existing code:
 - Upload API: `src/app/api/upload/route.ts`
@@ -50,11 +50,11 @@ Mapping to existing code:
 Goal: provide a professional, performant canvas with selection, transform, text editing, basic image layer manipulation, undo/redo, autosave.
 
 High-level checklist:
-- [ ] Choose and integrate canvas engine (Fabric.js or Konva). (Recommendation: Fabric.js for object-model parity with scene graph.)
+- [x] Choose and integrate canvas engine (Fabric.js or Konva). (Recommendation: Fabric.js for object-model parity with scene graph.) (started)
   - Add a thin adapter layer so the app uses the layer model in `prisma` / scene-graph JSON, not Fabric APIs directly.
 - [ ] Implement editor UI shell (top toolbar, left tools, right properties, bottom layers). Leverage existing layout at `src/app/projects/[id]/editor/page.tsx`.
   - Files: `src/app/projects/[id]/editor/page.tsx`, create components under `src/components/editor/*`.
-- [ ] Implement loading of PREVIEW asset into canvas (use preview asset -> `Asset` with kind=PREVIEW stored by ingestUpload).
+- [x] Implement loading of PREVIEW asset into canvas (use preview asset -> `Asset` with kind=PREVIEW stored by ingestUpload). (done)
   - Data access: server route to return project's preview asset signed URL (use `getStorageProvider().getSignedReadUrl` and Project ownership checks).
 - [ ] Add core interactions: select, multi-select, drag, resize, rotate, delete, duplicate, copy/paste.
 - [ ] Text layer editing: double-click to edit, inline edit controls, font family/size/weight basic UI.
@@ -143,10 +143,10 @@ Mapping to files:
 ---
 
 ## Immediate next actions (concrete, high-priority)
-1. Create `.env.example` listing the env vars used by this repo (STORAGE_PROVIDER, STORAGE_LOCAL_ROOT, DATABASE_URL, AI_MODE, REDIS_URL, etc.).
-2. Implement a minimal mock AI provider and a lightweight in-process worker that runs ANALYSIS for new uploads and writes a sample `DesignVersion` and layers (this will enable the editor to open with editable layers without external services).
-3. Integrate Fabric.js (or Konva) and implement a minimal Canvas that can load layers from the DB and support select/move/resize/rotate + undo/redo + autosave.
-4. Add endpoints to read preview asset signed URL and to save design versions.
+1. Create `.env.example` listing the env vars used by this repo (STORAGE_PROVIDER, STORAGE_LOCAL_ROOT, DATABASE_URL, AI_MODE, REDIS_URL, etc.). (done)
+2. Implement a minimal mock AI provider and a lightweight in-process worker that runs ANALYSIS for new uploads and writes a sample `DesignVersion` and layers (this will enable the editor to open with editable layers without external services). (pending)
+3. Integrate Fabric.js (or Konva) and implement a minimal Canvas that can load layers from the DB and support select/move/resize/rotate + undo/redo + autosave. (started — Canvas integration done)
+4. Add endpoints to read preview asset signed URL and to save design versions. (pending)
 
 ---
 
