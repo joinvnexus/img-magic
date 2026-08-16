@@ -11,11 +11,18 @@ background layer. No AI analysis yet — that's Phase 3. See "What's built" belo
 ## Quick start
 
 ```bash
+# Install dependencies
 npm install
-cp .env.example .env          # defaults work for local dev out of the box
-npm run db:generate           # generates the Prisma client (needs network access
-                               # to binaries.prisma.sh — see note below)
-npm run db:push               # creates tables in DATABASE_URL (requires a running Postgres)
+# Copy template env (do NOT commit your .env with secrets)
+cp .env.example .env
+
+# Generate Prisma client (this downloads Prisma engines once)
+npm run db:generate
+
+# Push schema to your running Postgres (or use prisma migrate when ready)
+npm run db:push
+
+# Run dev server
 npm run dev
 ```
 
@@ -28,8 +35,20 @@ This repo was built inside a sandboxed environment whose network allowlist
 didn't include `binaries.prisma.sh`, so `prisma generate` couldn't complete
 there — every other check (`eslint`, `tsc --noEmit` against hand-written
 types) passed clean. This is a one-time engine download; it works normally
-on a developer machine, CI, or Claude Code with standard network access.
-Run `npm run db:generate` once you have that, and `npm run build` will pass.
+on a developer machine, CI, or other networked environments. Run
+`npm run db:generate` once you have that, and `npm run build` will pass.
+
+If `prisma generate` fails due to network restrictions, see `DEVELOPMENT.md`
+for troubleshooting and alternative commands (for example `npm run db:push`).
+
+### Running tests and CI
+
+This repository includes unit tests using Vitest and a GitHub Actions CI
+workflow that runs linting, tests, and TypeScript checks on PRs to `main`.
+
+- Run tests locally: `npm test` (uses Vitest)
+- CI: `.github/workflows/ci.yml` — runs `npm ci`, `npm run lint`, `npm test`,
+  and `npx tsc --noEmit` on pushes and PRs to `main`.
 
 ### Database
 
