@@ -103,6 +103,8 @@ export function CanvasEditor({ previewUrl, canvasWidth, canvasHeight }: CanvasEd
             fontFamily: t.fontFamily ?? 'Arial',
             fontWeight: t.fontWeight ?? 400,
             fill: t.fill ?? '#000',
+            selectable: true,
+            editable: true,
           });
           // @ts-ignore
           text.__layerId = t.id;
@@ -302,6 +304,29 @@ export function CanvasEditor({ previewUrl, canvasWidth, canvasHeight }: CanvasEd
         canvas.on('object:added', scheduleSave);
         canvas.on('object:removed', scheduleSave);
 
+        // Double-click text to enter inline edit mode
+        // fabric mouse:dblclick event provides target in e.target
+        // @ts-ignore
+        canvas.on('mouse:dblclick', (opt: any) => {
+          const target = opt && opt.target;
+          if (target && (target.type === 'textbox' || target.type === 'i-text' || target.type === 'text')) {
+            canvas.setActiveObject(target);
+            // @ts-ignore
+            if (typeof target.enterEditing === 'function') {
+              // @ts-ignore
+              target.enterEditing();
+            }
+          }
+        });
+
+        // When text editing exits, schedule a save and push history
+        // @ts-ignore
+        canvas.on('text:editing:exited', (opt: any) => {
+          scheduleSave();
+          pushHistory();
+          updateApi();
+        });
+
         // keyboard shortcuts for undo/redo
         const onKeyDown = (e: KeyboardEvent) => {
           const isMac = navigator.platform.toLowerCase().includes('mac');
@@ -323,6 +348,10 @@ export function CanvasEditor({ previewUrl, canvasWidth, canvasHeight }: CanvasEd
           canvas.off('object:modified', scheduleSave);
           canvas.off('object:added', scheduleSave);
           canvas.off('object:removed', scheduleSave);
+          // @ts-ignore
+          canvas.off('mouse:dblclick');
+          // @ts-ignore
+          canvas.off('text:editing:exited');
           if (saveTimer) clearTimeout(saveTimer);
           window.removeEventListener('keydown', onKeyDown as any);
         };
