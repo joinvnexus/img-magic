@@ -67,7 +67,7 @@ export function EditorShell({ project, previewUrl, canvasWidth, canvasHeight }: 
         <main className="flex-1 min-w-0 checker-bg flex items-center justify-center overflow-auto p-8">
           {previewUrl ? (
            <div className="w-full h-full shadow-2xl" style={{ aspectRatio: `${canvasWidth} / ${canvasHeight}` }}>
-             <CanvasEditor previewUrl={previewUrl} canvasWidth={canvasWidth} canvasHeight={canvasHeight} />
+             <CanvasEditor projectId={project.id} previewUrl={previewUrl} canvasWidth={canvasWidth} canvasHeight={canvasHeight} />
            </div>
           ) : (
            <p className="text-text-muted text-sm">No preview available for this project.</p>
