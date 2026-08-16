@@ -410,6 +410,30 @@ export function CanvasEditor({ previewUrl, canvasWidth, canvasHeight }: CanvasEd
             e.preventDefault();
             return;
           }
+
+          // Arrow key nudging
+          if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            // do not nudge while editing text
+            const activeObj = canvas.getActiveObject();
+            if (activeObj && (activeObj.isEditing || activeObj.get('editing'))) {
+              return; // allow text editing caret to move
+            }
+            const step = e.shiftKey ? 10 : 1;
+            const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+            const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+            const actives = canvas.getActiveObjects ? canvas.getActiveObjects() : (activeObj ? [activeObj] : []);
+            if (actives && actives.length > 0) {
+              actives.forEach((obj: any) => {
+                obj.set({ left: (obj.left ?? 0) + dx, top: (obj.top ?? 0) + dy });
+                obj.setCoords();
+              });
+              canvas.requestRenderAll();
+              pushHistory();
+              scheduleSave();
+            }
+            e.preventDefault();
+            return;
+          }
         };
 
         window.addEventListener('keydown', onKeyDown);
