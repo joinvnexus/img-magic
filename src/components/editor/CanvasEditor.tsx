@@ -8,6 +8,7 @@ interface CanvasEditorProps {
   previewUrl: string | null;
   canvasWidth: number;
   canvasHeight: number;
+  onRegisterEditorApi?: (api: { undo: () => void; redo: () => void; canUndo: () => boolean; canRedo: () => boolean }) => void;
 }
 
 export function CanvasEditor({ previewUrl, canvasWidth, canvasHeight }: CanvasEditorProps) {
@@ -115,7 +116,59 @@ export function CanvasEditor({ previewUrl, canvasWidth, canvasHeight }: CanvasEd
           canvas.setActiveObject(rect);
         }
 
-        // Attach change listeners for autosave (debounced)
+        // Set up undo/redo history
+        const history: string[] = [];
+        let historyIndex = -1;
+        const pushHistory = () => {
+          try {
+            const json = JSON.stringify(canvas.toJSON(['__sourceAssetId', 'metadata', 'visible', 'locked']));
+            // if not at the end, truncate future
+            if (historyIndex < history.length - 1) {
+              history.splice(historyIndex + 1);
+            }
+            history.push(json);
+            historyIndex = history.length - 1;
+            updateApi();
+          } catch (e) {
+            // ignore
+          }
+        };
+
+        const loadHistoryIndex = (index: number) => {
+          if (index < 0 || index >= history.length) return;
+          const state = history[index];
+          canvas.loadFromJSON(state, () => {
+            canvas.renderAll();
+          });
+          historyIndex = index;
+          updateApi();
+        };
+
+        const undo = () => {
+          if (historyIndex > 0) {
+            loadHistoryIndex(historyIndex - 1);
+          }
+        };
+
+        const redo = () => {
+          if (historyIndex < history.length - 1) {
+            loadHistoryIndex(historyIndex + 1);
+          }
+        };
+
+        const canUndo = () => historyIndex > 0;
+        const canRedo = () => historyIndex < history.length - 1;
+
+        const updateApi = () => {
+          if (onRegisterEditorApi) {
+            onRegisterEditorApi({ undo, redo, canUndo, canRedo });
+          }
+        };
+
+        // push initial state
+        pushHistory();
+
+        // Attach change listeners for autosave (debounced) and history
         const autosaveDelay = 800;
         let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -173,12 +226,31 @@ export function CanvasEditor({ previewUrl, canvasWidth, canvasHeight }: CanvasEd
 
         const scheduleSave = () => {
           if (saveTimer) clearTimeout(saveTimer);
-          saveTimer = setTimeout(serializeAndSave, autosaveDelay);
+          saveTimer = setTimeout(async () => {
+            pushHistory();
+            await serializeAndSave();
+          }, autosaveDelay);
         };
 
         canvas.on('object:modified', scheduleSave);
         canvas.on('object:added', scheduleSave);
         canvas.on('object:removed', scheduleSave);
+
+        // keyboard shortcuts for undo/redo
+        const onKeyDown = (e: KeyboardEvent) => {
+          const isMac = navigator.platform.toLowerCase().includes('mac');
+          const meta = isMac ? e.metaKey : e.ctrlKey;
+          if (meta && e.key.toLowerCase() === 'z') {
+            if (e.shiftKey) {
+              redo();
+            } else {
+              undo();
+            }
+            e.preventDefault();
+          }
+        };
+
+        window.addEventListener('keydown', onKeyDown);
 
         // cleanup listeners on unmount or reload
         return () => {
@@ -186,6 +258,7 @@ export function CanvasEditor({ previewUrl, canvasWidth, canvasHeight }: CanvasEd
           canvas.off('object:added', scheduleSave);
           canvas.off('object:removed', scheduleSave);
           if (saveTimer) clearTimeout(saveTimer);
+          window.removeEventListener('keydown', onKeyDown as any);
         };
       } catch (err) {
         // fallback: add sample rect

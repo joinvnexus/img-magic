@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import dynamic from 'next/dynamic';
 
 const CanvasEditor = dynamic(() => import('./CanvasEditor').then(m => m.CanvasEditor), { ssr: false });
+import { useState } from 'react';
 
 interface EditorShellProps {
   project: { id: string; name: string; status: string };
@@ -24,6 +25,8 @@ interface EditorShellProps {
  * so the layout is real, but their behavior is not implemented yet.
  */
 export function EditorShell({ project, previewUrl, canvasWidth, canvasHeight }: EditorShellProps) {
+  const [editorApi, setEditorApi] = useState<{ undo: () => void; redo: () => void; canUndo: () => boolean; canRedo: () => boolean } | null>(null);
+
   return (
     <div className="flex-1 flex flex-col h-screen">
       {/* Top toolbar */}
@@ -35,17 +38,29 @@ export function EditorShell({ project, previewUrl, canvasWidth, canvasHeight }: 
           <span className="text-border">/</span>
           <span className="text-sm font-medium truncate max-w-[240px]">{project.name}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" disabled title="Phase 3">
-            Undo
-          </Button>
-          <Button variant="ghost" size="sm" disabled title="Phase 3">
-            Redo
-          </Button>
-          <Button variant="secondary" size="sm" disabled title="Phase 6">
-            Export
-          </Button>
-        </div>
+         <div className="flex items-center gap-2">
+           <Button
+             variant="ghost"
+             size="sm"
+             onClick={() => editorApi?.undo()}
+             disabled={!editorApi || !editorApi.canUndo()}
+             title="Undo (Ctrl/Cmd+Z)"
+           >
+             Undo
+           </Button>
+           <Button
+             variant="ghost"
+             size="sm"
+             onClick={() => editorApi?.redo()}
+             disabled={!editorApi || !editorApi.canRedo()}
+             title="Redo (Ctrl/Cmd+Shift+Z)"
+           >
+             Redo
+           </Button>
+           <Button variant="secondary" size="sm" disabled title="Phase 6">
+             Export
+           </Button>
+         </div>
       </div>
 
       <div className="flex-1 flex min-h-0">
