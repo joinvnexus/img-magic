@@ -100,20 +100,13 @@ export function EditorShell({ project, previewUrl, canvasWidth, canvasHeight }: 
 
       {/* Bottom layers panel */}
       <div className="h-40 shrink-0 border-t border-border p-3 overflow-y-auto">
-        <h3 className="text-xs font-medium uppercase tracking-wide text-text-muted mb-2">Layers</h3>
-        <div className="flex items-center gap-2 rounded-md bg-bg-panel px-3 py-2 text-sm">
-          <span title="Locked">🔒</span>
-          <span title="Visible">👁</span>
-          <span className="flex-1">Background</span>
-          <span className="text-xs text-text-muted">
-            {canvasWidth}×{canvasHeight}
-          </span>
-        </div>
-        <p className="mt-2 text-xs text-text-muted">
-          This project hasn&apos;t been analyzed yet, so it&apos;s shown as a single locked background
-          image rather than editable layers — the honest fallback described in the product spec, not a bug.
-          Analysis (OCR, object detection, segmentation) is Phase 3.
-        </p>
+         <h3 className="text-xs font-medium uppercase tracking-wide text-text-muted mb-2">Layers</h3>
+         <div className="mb-2">
+           <LayersPanel editorApi={editorApi} />
+         </div>
+         <p className="mt-2 text-xs text-text-muted">
+           Layers are editable where available. Reordering and visibility changes are applied locally and autosaved.
+         </p>
       </div>
     </div>
   );

@@ -161,7 +161,73 @@ export function CanvasEditor({ previewUrl, canvasWidth, canvasHeight }: CanvasEd
 
         const updateApi = () => {
           if (onRegisterEditorApi) {
-            onRegisterEditorApi({ undo, redo, canUndo, canRedo });
+            onRegisterEditorApi({
+            undo,
+            redo,
+            canUndo,
+            canRedo,
+            listLayers: () => canvas.getObjects().map((o:any, idx:number) => ({
+              id: o.__layerId ?? idx,
+              type: o.type,
+              name: o.name ?? (o.type === 'image' ? `Image ${idx}` : `Layer ${idx}`),
+              visible: o.visible ?? true,
+              locked: o.locked ?? false,
+            })),
+            bringForward: (index: number) => {
+              const obj = canvas.item(index);
+              if (obj) canvas.bringForward(obj);
+              canvas.renderAll();
+            },
+            sendBackward: (index: number) => {
+              const obj = canvas.item(index);
+              if (obj) canvas.sendBackwards(obj);
+              canvas.renderAll();
+            },
+            moveToIndex: (fromIdx:number, toIdx:number) => {
+              const obj = canvas.item(fromIdx);
+              if (!obj) return;
+              canvas.remove(obj);
+              canvas.insertAt(obj, toIdx);
+              canvas.renderAll();
+            },
+            toggleVisibility: (index:number) => {
+              const obj = canvas.item(index);
+              if (!obj) return;
+              obj.visible = !obj.visible;
+              canvas.renderAll();
+            },
+            toggleLock: (index:number) => {
+              const obj = canvas.item(index);
+              if (!obj) return;
+              obj.lockMovementX = obj.lockMovementX ? false : true;
+              obj.lockMovementY = obj.lockMovementY ? false : true;
+              obj.lockScalingX = obj.lockScalingX ? false : true;
+              obj.lockScalingY = obj.lockScalingY ? false : true;
+              obj.lockRotation = obj.lockRotation ? false : true;
+              canvas.renderAll();
+            },
+            renameLayer: (index:number, name:string) => {
+              const obj = canvas.item(index);
+              if (!obj) return;
+              obj.name = name;
+              canvas.renderAll();
+            },
+            deleteLayer: (index:number) => {
+              const obj = canvas.item(index);
+              if (!obj) return;
+              canvas.remove(obj);
+              canvas.renderAll();
+            },
+            duplicateLayer: (index:number) => {
+              const obj = canvas.item(index);
+              if (!obj) return;
+              obj.clone((cloned:any) => {
+                cloned.set({ left: (cloned.left ?? 0) + 10, top: (cloned.top ?? 0) + 10 });
+                canvas.add(cloned);
+                canvas.renderAll();
+              });
+            }
+          });
           }
         };
 
