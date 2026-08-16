@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import dynamic from 'next/dynamic';
+
+const CanvasEditor = dynamic(() => import('./CanvasEditor').then(m => m.CanvasEditor), { ssr: false });
 
 interface EditorShellProps {
   project: { id: string; name: string; status: string };
@@ -63,15 +66,11 @@ export function EditorShell({ project, previewUrl, canvasWidth, canvasHeight }: 
         {/* Canvas */}
         <main className="flex-1 min-w-0 checker-bg flex items-center justify-center overflow-auto p-8">
           {previewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={previewUrl}
-              alt={project.name}
-              className="max-h-full max-w-full shadow-2xl"
-              style={{ aspectRatio: `${canvasWidth} / ${canvasHeight}` }}
-            />
+           <div className="w-full h-full shadow-2xl" style={{ aspectRatio: `${canvasWidth} / ${canvasHeight}` }}>
+             <CanvasEditor previewUrl={previewUrl} canvasWidth={canvasWidth} canvasHeight={canvasHeight} />
+           </div>
           ) : (
-            <p className="text-text-muted text-sm">No preview available for this project.</p>
+           <p className="text-text-muted text-sm">No preview available for this project.</p>
           )}
         </main>
 

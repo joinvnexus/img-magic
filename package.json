@@ -14,31 +14,20 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.9.1",
-    "@prisma/client": "^7.9.1",
-    "clsx": "^2.1.1",
-    "dotenv": "^17.4.2",
-    "file-type": "^22.0.2",
-    "nanoid": "^6.0.1",
-    "next": "16.3.1",
-    "prisma": "^7.9.1",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "sharp": "^0.35.3",
-    "zod": "^4.4.3"
+    "fabric": "^5.5.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.43",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/supertest": "^2.0.12",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
+    "supertest": "^6.3.3",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^1.4.4",
-    "@types/supertest": "^2.0.12",
-    "supertest": "^6.3.3",
-    "vite-tsconfig-paths": "^4.2.0"
+    "vite-tsconfig-paths": "^4.2.0",
+    "vitest": "^1.4.4"
   }
 }
