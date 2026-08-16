@@ -1,0 +1,244 @@
+// Prisma schema — Phase 1 (Foundation)
+// Implements the normalized entity model: User, Project, Asset, Design,
+// DesignVersion, Layer, AIJob, Export. No large binaries are stored here —
+// every image-bearing field is a storage key/reference (see src/server/storage).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Core ownership
+// ---------------------------------------------------------------------------
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects Project[]
+
+  @@map("users")
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  status    ProjectStatus @default(DRAFT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assets   Asset[]
+  designs  Design[]
+  aiJobs   AIJob[]
+  exports  Export[]
+
+  @@index([userId])
+  @@map("projects")
+}
+
+enum ProjectStatus {
+  DRAFT
+  ANALYZING
+  READY
+  FAILED
+}
+
+// ---------------------------------------------------------------------------
+// Assets — every binary lives in object storage; this row is metadata + a key
+// ---------------------------------------------------------------------------
+
+model Asset {
+  id           String     @id @default(cuid())
+  projectId    String
+  kind         AssetKind
+  storageKey   String     // path/key inside the storage bucket
+  mimeType     String
+  width        Int?
+  height       Int?
+  sizeBytes    Int
+  checksum     String?    // sha256 of the file, for dedupe/integrity
+  createdAt    DateTime   @default(now())
+
+  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  layersAsSource Layer[]  @relation("LayerSourceAsset")
+
+  @@index([projectId])
+  @@map("assets")
+}
+
+enum AssetKind {
+  ORIGINAL
+  PREVIEW
+  THUMBNAIL
+  LAYER_EXTRACT
+  MASK
+  EXPORT
+}
+
+// ---------------------------------------------------------------------------
+// Design + versioned scene graph
+// ---------------------------------------------------------------------------
+
+model Design {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+  canvasWidth  Int
+  canvasHeight Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project        Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versions       DesignVersion[]
+
+  @@index([projectId])
+  @@map("designs")
+}
+
+// A DesignVersion is an immutable snapshot of the scene graph. Every AI
+// operation or "save version" action forks a new version rather than
+// mutating the previous one — this is what makes undo/redo and version
+// history reliable instead of ad-hoc.
+model DesignVersion {
+  id           String   @id @default(cuid())
+  designId     String
+  versionNumber Int
+  label        String?  // e.g. "Original Reconstruction", "Removed Burger"
+  isAutosave   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  design  Design  @relation(fields: [designId], references: [id], onDelete: Cascade)
+  layers  Layer[]
+
+  @@unique([designId, versionNumber])
+  @@index([designId])
+  @@map("design_versions")
+}
+
+model Layer {
+  id              String      @id @default(cuid())
+  designVersionId String
+  type            LayerType
+  name            String
+  zIndex          Int
+  x               Float
+  y               Float
+  width           Float
+  height          Float
+  rotation        Float       @default(0)
+  opacity         Float       @default(1)
+  visible         Boolean     @default(true)
+  locked          Boolean     @default(false)
+
+  // image/shape layers
+  sourceAssetId   String?
+
+  // text layers
+  text            String?
+  fontFamily      String?
+  fontSize        Float?
+  fontWeight      Int?
+  fill            String?
+
+  // grouping
+  parentLayerId   String?
+
+  // AI provenance
+  confidence      Float?      // detection confidence, 0-1, null for manually-created layers
+
+  metadata        Json?       // free-form: polygon points, style metadata, provider-specific fields
+
+  designVersion DesignVersion @relation(fields: [designVersionId], references: [id], onDelete: Cascade)
+  sourceAsset   Asset?        @relation("LayerSourceAsset", fields: [sourceAssetId], references: [id])
+
+  @@index([designVersionId])
+  @@map("layers")
+}
+
+enum LayerType {
+  BACKGROUND
+  IMAGE
+  TEXT
+  SHAPE
+  VECTOR
+  GROUP
+  MASK
+  ADJUSTMENT
+}
+
+// ---------------------------------------------------------------------------
+// Background jobs (analysis + AI editing)
+// ---------------------------------------------------------------------------
+
+model AIJob {
+  id             String     @id @default(cuid())
+  projectId      String
+  type           AIJobType
+  provider       String     // e.g. "mock", "textract", "sam2", "replicate:flux-fill"
+  status         AIJobStatus @default(QUEUED)
+  progress       Int        @default(0) // 0-100
+  inputAssetId   String?
+  outputAssetId  String?
+  error          String?
+  metadata       Json?      // prompt, layerId being edited, provider params, etc.
+  createdAt      DateTime   @default(now())
+  completedAt    DateTime?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([status])
+  @@map("ai_jobs")
+}
+
+enum AIJobType {
+  ANALYSIS
+  AI_ERASE
+  AI_REPLACE
+  AI_BACKGROUND
+  AI_EDIT
+}
+
+enum AIJobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// ---------------------------------------------------------------------------
+// Export
+// ---------------------------------------------------------------------------
+
+model Export {
+  id            String       @id @default(cuid())
+  projectId     String
+  designVersionId String?
+  format        ExportFormat
+  storageKey    String
+  width         Int
+  height        Int
+  createdAt     DateTime     @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("exports")
+}
+
+enum ExportFormat {
+  PNG
+  JPG
+  WEBP
+}
