@@ -24,9 +24,10 @@ import { ingestUpload } from './assets/ingestUpload';
 
 describe('ingestUpload (mocked)', () => {
   it('creates project and assets using mocked prisma and storage', async () => {
-    const buffer = Buffer.from([0xff, 0xd8, 0xff]); // mock JPEG header
+    const sharp = (await import('sharp')).default;
+    const buffer = await sharp({ create: { width: 10, height: 10, channels: 3, background: { r: 255, g: 0, b: 0 } } }).png().toBuffer();
 
-    const result = await ingestUpload({ userId: 'user_mock', displayName: 'Test.jpg', buffer });
+    const result = await ingestUpload({ userId: 'user_mock', displayName: 'Test.png', buffer });
 
     expect(result).toHaveProperty('projectId');
     expect(result).toHaveProperty('originalAssetId');
