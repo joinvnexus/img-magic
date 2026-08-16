@@ -25,7 +25,7 @@ import { ingestUpload } from './assets/ingestUpload';
 describe('ingestUpload (mocked)', () => {
   it('creates project and assets using mocked prisma and storage', async () => {
     const sharp = (await import('sharp')).default;
-    const buffer = await sharp({ create: { width: 10, height: 10, channels: 3, background: { r: 255, g: 0, b: 0 } } }).png().toBuffer();
+    const buffer = await sharp({ create: { width: 128, height: 128, channels: 3, background: { r: 255, g: 0, b: 0 } } }).png().toBuffer();
 
     const result = await ingestUpload({ userId: 'user_mock', displayName: 'Test.png', buffer });
 
