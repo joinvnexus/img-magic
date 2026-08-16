@@ -327,10 +327,13 @@ export function CanvasEditor({ previewUrl, canvasWidth, canvasHeight }: CanvasEd
           updateApi();
         });
 
-        // keyboard shortcuts for undo/redo
+        // keyboard shortcuts for undo/redo, copy/paste/duplicate, delete
+        let clipboard: any = null;
         const onKeyDown = (e: KeyboardEvent) => {
           const isMac = navigator.platform.toLowerCase().includes('mac');
           const meta = isMac ? e.metaKey : e.ctrlKey;
+
+          // Undo / Redo
           if (meta && e.key.toLowerCase() === 'z') {
             if (e.shiftKey) {
               redo();
@@ -338,6 +341,74 @@ export function CanvasEditor({ previewUrl, canvasWidth, canvasHeight }: CanvasEd
               undo();
             }
             e.preventDefault();
+            return;
+          }
+
+          // Copy
+          if (meta && e.key.toLowerCase() === 'c') {
+            const active = canvas.getActiveObject();
+            const activeSelection = (canvas as any).getActiveObjects ? (canvas as any).getActiveObjects() : (active ? [active] : []);
+            if (activeSelection && activeSelection.length > 0) {
+              // for simplicity store the JSON of the first active object or the group
+              clipboard = activeSelection.map((o: any) => o.toJSON(['__sourceAssetId', 'metadata', 'visible', 'locked']));
+            }
+            e.preventDefault();
+            return;
+          }
+
+          // Paste
+          if (meta && e.key.toLowerCase() === 'v') {
+            if (clipboard) {
+              // Paste each item from clipboard
+              for (const itemJson of clipboard) {
+                // fabric.util.enlivenObjects expects array, but we can load via canvas.loadFromJSON snippet
+                fabric.util.enlivenObjects([itemJson], (enlivened: any[]) => {
+                  for (const obj of enlivened) {
+                    // offset pasted object a bit
+                    obj.set({ left: (obj.left ?? 0) + 10, top: (obj.top ?? 0) + 10 });
+                    canvas.add(obj);
+                  }
+                  canvas.requestRenderAll();
+                  pushHistory();
+                  scheduleSave();
+                });
+              }
+            }
+            e.preventDefault();
+            return;
+          }
+
+          // Duplicate (Cmd/Ctrl + D)
+          if (meta && e.key.toLowerCase() === 'd') {
+            const active = canvas.getActiveObject();
+            const activeSelection = (canvas as any).getActiveObjects ? (canvas as any).getActiveObjects() : (active ? [active] : []);
+            if (activeSelection && activeSelection.length > 0) {
+              for (const obj of activeSelection) {
+                obj.clone((cloned: any) => {
+                  cloned.set({ left: (cloned.left ?? 0) + 10, top: (cloned.top ?? 0) + 10 });
+                  canvas.add(cloned);
+                  canvas.requestRenderAll();
+                });
+              }
+              pushHistory();
+              scheduleSave();
+            }
+            e.preventDefault();
+            return;
+          }
+
+          // Delete / Backspace
+          if (e.key === 'Delete' || e.key === 'Backspace') {
+            const active = canvas.getActiveObjects ? canvas.getActiveObjects() : (canvas.getActiveObject() ? [canvas.getActiveObject()] : []);
+            if (active && active.length > 0) {
+              active.forEach((obj: any) => canvas.remove(obj));
+              canvas.discardActiveObject();
+              canvas.requestRenderAll();
+              pushHistory();
+              scheduleSave();
+            }
+            e.preventDefault();
+            return;
           }
         };
 
